@@ -10,7 +10,8 @@ TMP_DIR="tmp"
 echo "Fetching MSA using ColabFold server"
 export PATH="${COLABFOLD_PATH}:${PATH}"
 
-colabfold_batch $INPUT_FASTA $TMP_DIR --af3-json --jobname-prefix $INPUT_PREFIX
+colabfold_batch $INPUT_FASTA $TMP_DIR --af3-json --jobname-prefix $INPUT_PREFIX \
+    --overwrite-existing-results --data $COLAB_MODELS_DIR
 
 echo "Running AF3 prediction"
 AF3_INPUT_FILE="${INPUT_PREFIX}_0.json"

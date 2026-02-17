@@ -13,7 +13,7 @@ FASTA_BASENAME=$(basename "${INPUT_FASTA}" .fasta)
 FASTA_BASENAME=$(basename "${FASTA_BASENAME}" .fa)
 PREFIX="${DATE}_${FASTA_BASENAME}"
 LOG_DIR="log"
-source .env
+source ${PROJECT_DIR}/.env
 
 mkdir -p $LOG_DIR
 
@@ -25,4 +25,4 @@ sbatch --job-name=$PREFIX \
        --gres=gpu:a100:1 \
        --output=${LOG_DIR}/%x.out \
        --error=${LOG_DIR}/%x.err \
-       sh/custom.sh $INPUT_FASTA $PREFIX $PROJECT_DIR > /dev/null
+       ${PROJECT_DIR}/sh/custom.sh $INPUT_FASTA $PREFIX $PROJECT_DIR > /dev/null
