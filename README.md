@@ -1,10 +1,11 @@
 # Run workflows using AF3
 
-MSAs are generated with the ColabFold server and predictions are run with AlphaFold3.
+MSAs generated with ColabFold and predictions ran with AlphaFold3.
 
 ## 1. Custom prediction
 
 Run modelling of a custom protein or complex.
+In this case, MSAs are generated using ColabFold server. Not suitable for RNA modelling.
 
 ```bash
 bash run_custom.sh example.fa

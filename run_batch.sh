@@ -78,3 +78,12 @@ MOD_JOBID=$(
         "$PROJECT_DIR/sh/batch_model.sh" "$MSA_DIR" "$MOD_DIR" "$PROJECT_DIR"
 )
 echo "Mod jobid: ${MOD_JOBID}"
+
+# Cleanup job - cancels MOD array if MSA fails
+sbatch --job-name="${PREFIX}_CLEANUP" \
+    --dependency=afternotok:$MSA_JOBID \
+    --time=00:05:00 \
+    --mem=100MB \
+    --error="$LOG_DIR/%x.err" \
+    --output="$LOG_DIR/%x.out" \
+    --wrap="scancel ${MOD_JOBID}; echo 'MSA failed, cancelled modelling job ${MOD_JOBID}'" > /dev/null
