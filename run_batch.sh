@@ -1,0 +1,80 @@
+#!/usr/bin/bash -eu
+
+# Defaults
+MAX_CONCURRENT_GPU_JOBS=5
+MSA_TIME="24:00:00"
+MSA_MEM="128GB"
+MOD_TIME="2:00:00"
+MOD_MEM="32GB"
+
+usage() {
+    echo "Usage: $(basename $0) [options] input_fasta.fa"
+    echo ""
+    echo "Options:"
+    echo "  -h                    Show this help message"
+    echo "  -j <int>              Max concurrent GPU jobs (default: ${MAX_CONCURRENT_GPU_JOBS})"
+    echo "  -t <HH:MM:SS>         MSA time limit (default: ${MSA_TIME})"
+    echo "  -m <mem>              MSA memory (default: ${MSA_MEM})"
+    echo "  -T <HH:MM:SS>         Modelling time limit (default: ${MOD_TIME})"
+    echo "  -M <mem>              Modelling memory (default: ${MOD_MEM})"
+    exit 0
+}
+
+while getopts "hj:t:m:T:M:" opt; do
+    case $opt in
+        h) usage ;;
+        j) MAX_CONCURRENT_GPU_JOBS=$OPTARG ;;
+        t) MSA_TIME=$OPTARG ;;
+        m) MSA_MEM=$OPTARG ;;
+        T) MOD_TIME=$OPTARG ;;
+        M) MOD_MEM=$OPTARG ;;
+        *) usage ;;
+    esac
+done
+shift $((OPTIND - 1))
+
+INPUT_FASTA=${1:?Error: input fasta required. Use -h for help.}
+
+DATE=$(date '+%Y%m%d')
+PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+FASTA_BASENAME=$(basename "${INPUT_FASTA}" .fasta)
+FASTA_BASENAME=$(basename "${FASTA_BASENAME}" .fa)
+PREFIX="${DATE}_${FASTA_BASENAME}"
+OUTPUT_DIR="${PREFIX}_OUT"
+MSA_DIR="${OUTPUT_DIR}/MSAs"
+MOD_DIR="${OUTPUT_DIR}/af3_models"
+LOG_DIR="log"
+source "${PROJECT_DIR}/.env"
+
+mkdir -p "$LOG_DIR" "$OUTPUT_DIR"
+
+NUM_PROT=$(grep -c ">" "$INPUT_FASTA")
+
+# MSA
+echo "Submitting MSA"
+MSA_JOBID=$(
+    sbatch --parsable \
+        --job-name="${PREFIX}_MSA" \
+        --error="$LOG_DIR/%x.err" \
+        --output="$LOG_DIR/%x.out" \
+        --time=$MSA_TIME \
+        --mem=$MSA_MEM \
+        "$PROJECT_DIR/sh/batch_msa.sh" "$INPUT_FASTA" "$MSA_DIR" "$PROJECT_DIR"
+)
+echo "MSA jobid: ${MSA_JOBID}"
+
+# Modelling
+echo "Submitting modelling"
+MOD_JOBID=$(
+    sbatch --parsable \
+        --job-name="${PREFIX}_MOD" \
+        --dependency=afterok:$MSA_JOBID \
+        --array=1-$NUM_PROT%$MAX_CONCURRENT_GPU_JOBS \
+        --time=$MOD_TIME \
+        --mem=$MOD_MEM \
+        --gres=gpu:a100:1 \
+        --error="$LOG_DIR/%x_%a.err" \
+        --output="$LOG_DIR/%x_%a.out" \
+        "$PROJECT_DIR/sh/batch_model.sh" "$MSA_DIR" "$MOD_DIR" "$PROJECT_DIR"
+)
+echo "Mod jobid: ${MOD_JOBID}"

@@ -16,3 +16,18 @@ FIRSTPROTEIN:SECONDPROTEIN:dna|ACGT:dna|TGCA
 ```
 
 For more information on how to format an input file, visit [this page](https://github.com/sokrypton/ColabFold?tab=readme-ov-file#including-non-protein-molecules-in-fasta).
+
+## 2. Batch prediction
+
+```bash
+bash run_batch.sh [options] input_fasta.fa
+```
+Input file:
+```
+>complex_1|protA:protB
+FIRSTPROTEIN:SECONDPROTEIN
+>complex_2|protA:protB
+THIRDPROTEIN:FOURTHPROTEIN
+>complex_3|protA:protB
+FIFTHPROTEIN:SEVENTHPROTEIN
+```
