@@ -8,7 +8,7 @@ Run modelling of a custom protein or complex.
 In this case, MSAs are generated using ColabFold server. Not suitable for RNA modelling.
 
 ```bash
-bash run_custom.sh example.fa
+bash run_custom.sh example_1.fa
 ```
 Input file:
 ```
@@ -21,7 +21,7 @@ For more information on how to format an input file, visit [this page](https://g
 ## 2. Batch prediction
 
 ```bash
-bash run_batch.sh [options] input_fasta.fa
+bash run_batch.sh [options] example_2.fa
 ```
 Input file:
 ```
@@ -31,4 +31,21 @@ FIRSTPROTEIN:SECONDPROTEIN
 THIRDPROTEIN:FOURTHPROTEIN
 >complex_3|protA:protB
 FIFTHPROTEIN:SEVENTHPROTEIN
+```
+
+## 3. DNA0binding prediction
+Run modelling with standard DNA probes in batch. Input fasta file should contain homodimers.
+The results of this computation can be used to infer protein-DNA interaction.
+
+```bash
+bash run_batch.sh -d [options] example_3.fa
+```
+Input file:
+```
+>complex_1|protA:protB
+FIRSTPROTEIN:FIRSTPROTEIN
+>complex_2|protA:protB
+SECONDPROTEIN:SECONDPROTEIN
+>complex_3|protA:protB
+THIRDPROTEIN:THIRDPROTEIN
 ```

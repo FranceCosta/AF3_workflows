@@ -6,12 +6,16 @@ MSA_TIME="24:00:00"
 MSA_MEM="128GB"
 MOD_TIME="2:00:00"
 MOD_MEM="32GB"
+OUTPUT_PATH=""
+ADD_DNA=false
 
 usage() {
     echo "Usage: $(basename $0) [options] input_fasta.fa"
     echo ""
     echo "Options:"
     echo "  -h                    Show this help message"
+    echo "  -o <path>             Output path prefix (default: current directory)"
+    echo "  -d                    Append DNA probes for subsequent DNA binding prediction. Works with homodimer only."
     echo "  -j <int>              Max concurrent GPU jobs (default: ${MAX_CONCURRENT_GPU_JOBS})"
     echo "  -t <HH:MM:SS>         MSA time limit (default: ${MSA_TIME})"
     echo "  -m <mem>              MSA memory (default: ${MSA_MEM})"
@@ -20,9 +24,11 @@ usage() {
     exit 0
 }
 
-while getopts "hj:t:m:T:M:" opt; do
+while getopts "hdo:j:t:m:T:M:" opt; do
     case $opt in
         h) usage ;;
+        d) ADD_DNA=true ;;
+        o) OUTPUT_PATH=$OPTARG ;;
         j) MAX_CONCURRENT_GPU_JOBS=$OPTARG ;;
         t) MSA_TIME=$OPTARG ;;
         m) MSA_MEM=$OPTARG ;;
@@ -40,7 +46,13 @@ PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 FASTA_BASENAME=$(basename "${INPUT_FASTA}" .fasta)
 FASTA_BASENAME=$(basename "${FASTA_BASENAME}" .fa)
 PREFIX="${DATE}_${FASTA_BASENAME}"
-OUTPUT_DIR="${PREFIX}_OUT"
+
+if [[ -n "$OUTPUT_PATH" ]]; then
+    OUTPUT_DIR="${OUTPUT_PATH}/${PREFIX}_OUT"
+else
+    OUTPUT_DIR="${PREFIX}_OUT"
+fi
+
 MSA_DIR="${OUTPUT_DIR}/MSAs"
 MOD_DIR="${OUTPUT_DIR}/af3_models"
 LOG_DIR="log"
@@ -48,10 +60,44 @@ source "${PROJECT_DIR}/.env"
 
 mkdir -p "$LOG_DIR" "$OUTPUT_DIR"
 
+# Append DNA probes if -d flag is set
+if [[ "$ADD_DNA" == true ]]; then
+    : ${DNA_PROBE_FOR:?Error: DNA_PROBE_FOR not set in .env}
+    : ${DNA_PROBE_REV:?Error: DNA_PROBE_REV not set in .env}
+
+    DNA_FASTA="${OUTPUT_DIR}/sequences_with_dna.fa"
+    echo "Appending DNA probes to sequences, saving to ${DNA_FASTA}..."
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == ">"* ]]; then
+            # Validate: count colons in header (should be 1 for 2 protein chains)
+            COLONS=$(echo "$line" | tr -cd ':' | wc -c)
+            if (( COLONS > 1 )); then
+                echo "Error: header has more than 2 protein chains: ${line}" >&2
+                exit 1
+            fi
+            echo "${line}:dna1:dna2"
+        else
+            # Validate: check that the two protein chains are identical
+            CHAIN1=$(echo "$line" | cut -d':' -f1)
+            CHAIN2=$(echo "$line" | cut -d':' -f2)
+            if [[ "$CHAIN1" != "$CHAIN2" ]]; then
+                echo "Error: protein chains are not identical in sequence: ${line}" >&2
+                echo "  Chain 1: ${CHAIN1}" >&2
+                echo "  Chain 2: ${CHAIN2}" >&2
+                exit 1
+            fi
+            echo "${line}:dna|${DNA_PROBE_FOR}:dna|${DNA_PROBE_REV}"
+        fi
+    done < "$INPUT_FASTA" > "$DNA_FASTA"
+
+    INPUT_FASTA="$DNA_FASTA"
+fi
+
 NUM_PROT=$(grep -c ">" "$INPUT_FASTA")
 
 # MSA
-echo "Submitting MSA"
+echo "Submitting MSA (N=${NUM_PROT})"
 MSA_JOBID=$(
     sbatch --parsable \
         --job-name="${PREFIX}_MSA" \
@@ -64,7 +110,7 @@ MSA_JOBID=$(
 echo "MSA jobid: ${MSA_JOBID}"
 
 # Modelling
-echo "Submitting modelling"
+echo "Submitting modelling (N=${NUM_PROT})"
 MOD_JOBID=$(
     sbatch --parsable \
         --job-name="${PREFIX}_MOD" \
