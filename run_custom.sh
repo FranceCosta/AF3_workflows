@@ -25,4 +25,4 @@ sbatch --job-name=$PREFIX \
        --gres=gpu:a100:1 \
        --output=${LOG_DIR}/%x.out \
        --error=${LOG_DIR}/%x.err \
-       ${PROJECT_DIR}/sh/custom.sh $INPUT_FASTA $PREFIX $PROJECT_DIR > /dev/null
+       ${PROJECT_DIR}/sh/custom.sh $INPUT_FASTA $PREFIX $PROJECT_DIR
