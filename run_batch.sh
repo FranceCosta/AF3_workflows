@@ -3,11 +3,14 @@
 # Defaults
 MAX_CONCURRENT_GPU_JOBS=5
 MSA_TIME="24:00:00"
-MSA_MEM="128GB"
-MOD_TIME="2:00:00"
+MSA_MEM="256GB"
+MSA_CPUS="32"
+MOD_TIME="1:00:00"
 MOD_MEM="32GB"
 OUTPUT_PATH=""
 ADD_DNA=false
+USE_ENV="1"
+USE_TMPL="1"
 
 usage() {
     echo "Usage: $(basename $0) [options] input_fasta.fa"
@@ -15,16 +18,19 @@ usage() {
     echo "Options:"
     echo "  -h                    Show this help message"
     echo "  -o <path>             Output path prefix (default: current directory)"
-    echo "  -d                    Append DNA probes for subsequent DNA binding prediction. Works with homodimer only."
+    echo "  -d                    Append DNA probes for DNA binding prediction. Works with homodimers only."
     echo "  -j <int>              Max concurrent GPU jobs (default: ${MAX_CONCURRENT_GPU_JOBS})"
     echo "  -t <HH:MM:SS>         MSA time limit (default: ${MSA_TIME})"
     echo "  -m <mem>              MSA memory (default: ${MSA_MEM})"
     echo "  -T <HH:MM:SS>         Modelling time limit (default: ${MOD_TIME})"
     echo "  -M <mem>              Modelling memory (default: ${MOD_MEM})"
+    echo "  -C <ncpus>            Number of CPUs for MSA generation (default: ${MSA_CPUS})"
+    echo "  -E <int>              MSA generation --use-env option (default: ${USE_ENV})"
+    echo "  -P <int>              MSA geneation --use-templates option (default: ${USE_TMPL})"
     exit 0
 }
 
-while getopts "hdo:j:t:m:T:M:" opt; do
+while getopts "hdo:j:t:m:T:M:C:E:P:" opt; do
     case $opt in
         h) usage ;;
         d) ADD_DNA=true ;;
@@ -34,6 +40,9 @@ while getopts "hdo:j:t:m:T:M:" opt; do
         m) MSA_MEM=$OPTARG ;;
         T) MOD_TIME=$OPTARG ;;
         M) MOD_MEM=$OPTARG ;;
+        C) MSA_CPUS=$OPTARG ;;
+        E) USE_ENV=$OPTARG ;;
+        P) USE_TMPL=$OPTARG ;;
         *) usage ;;
     esac
 done
@@ -58,7 +67,7 @@ MOD_DIR="${OUTPUT_DIR}/af3_models"
 LOG_DIR="log"
 source "${PROJECT_DIR}/.env"
 
-mkdir -p "$LOG_DIR" "$OUTPUT_DIR"
+mkdir -p "$LOG_DIR" "$OUTPUT_DIR" "$MOD_DIR"
 
 # Append DNA probes if -d flag is set
 if [[ "$ADD_DNA" == true ]]; then
@@ -105,7 +114,9 @@ MSA_JOBID=$(
         --output="$LOG_DIR/%x.out" \
         --time=$MSA_TIME \
         --mem=$MSA_MEM \
-        "$PROJECT_DIR/sh/batch_msa.sh" "$INPUT_FASTA" "$MSA_DIR" "$PROJECT_DIR"
+        --nodes=1 \
+        --cpus-per-task=$MSA_CPUS \
+        "$PROJECT_DIR/sh/batch_msa.sh" "$INPUT_FASTA" "$MSA_DIR" "$PROJECT_DIR" "$USE_ENV" "$USE_TMPL"
 )
 echo "MSA jobid: ${MSA_JOBID}"
 
