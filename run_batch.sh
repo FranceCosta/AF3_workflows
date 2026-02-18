@@ -11,6 +11,7 @@ OUTPUT_PATH=""
 ADD_DNA=false
 USE_ENV="1"
 USE_TMPL="1"
+KEEP_ALL_PRED="0"
 
 usage() {
     echo "Usage: $(basename $0) [options] input_fasta.fa"
@@ -27,10 +28,11 @@ usage() {
     echo "  -C <ncpus>            Number of CPUs for MSA generation (default: ${MSA_CPUS})"
     echo "  -E <int>              MSA generation --use-env option (default: ${USE_ENV})"
     echo "  -P <int>              MSA geneation --use-templates option (default: ${USE_TMPL})"
+    echo "  -K <int>              Keep all AF3 predictions (default: ${KEEP_ALL_PRED})"
     exit 0
 }
 
-while getopts "hdo:j:t:m:T:M:C:E:P:" opt; do
+while getopts "hdo:j:t:m:T:M:C:E:P:K:" opt; do
     case $opt in
         h) usage ;;
         d) ADD_DNA=true ;;
@@ -43,6 +45,7 @@ while getopts "hdo:j:t:m:T:M:C:E:P:" opt; do
         C) MSA_CPUS=$OPTARG ;;
         E) USE_ENV=$OPTARG ;;
         P) USE_TMPL=$OPTARG ;;
+        K) KEEP_ALL_PRED=$OPTARG ;;
         *) usage ;;
     esac
 done
@@ -68,6 +71,9 @@ LOG_DIR="log"
 source "${PROJECT_DIR}/.env"
 
 mkdir -p "$LOG_DIR" "$OUTPUT_DIR" "$MOD_DIR"
+
+# Copy original input file
+cp -f "$INPUT_FASTA" "${OUTPUT_DIR}/input_sequences.fa"
 
 # Append DNA probes if -d flag is set
 if [[ "$ADD_DNA" == true ]]; then
@@ -130,17 +136,9 @@ MOD_JOBID=$(
         --time=$MOD_TIME \
         --mem=$MOD_MEM \
         --gres=gpu:a100:1 \
+        --kill-on-invalid-dep=yes \
         --error="$LOG_DIR/%x_%a.err" \
         --output="$LOG_DIR/%x_%a.out" \
-        "$PROJECT_DIR/sh/batch_model.sh" "$MSA_DIR" "$MOD_DIR" "$PROJECT_DIR"
+        "$PROJECT_DIR/sh/batch_model.sh" "$MSA_DIR" "$MOD_DIR" "$PROJECT_DIR" "$KEEP_ALL_PRED"
 )
 echo "Mod jobid: ${MOD_JOBID}"
-
-# Cleanup job - cancels MOD array if MSA fails
-sbatch --job-name="${PREFIX}_CLEANUP" \
-    --dependency=afternotok:$MSA_JOBID \
-    --time=00:05:00 \
-    --mem=100MB \
-    --error="$LOG_DIR/%x.err" \
-    --output="$LOG_DIR/%x.out" \
-    --wrap="scancel ${MOD_JOBID}; echo 'MSA failed, cancelled modelling job ${MOD_JOBID}'" > /dev/null

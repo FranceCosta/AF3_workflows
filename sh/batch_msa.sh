@@ -12,6 +12,7 @@ source "${PROJECT_DIR}/.env"
 export PATH="${COLABFOLD_PATH}:${PATH}"
 colabfold_search $INPUT_FASTA $COLABFOLD_DB $MSA_DIR \
     --af3-json \
+    --af3-msa-as-path \
     --use-env "$USE_ENV" \
     --use-templates "$USE_TMPL" \
     --db2 pdb100_230517
