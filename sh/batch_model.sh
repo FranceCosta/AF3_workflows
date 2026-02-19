@@ -47,5 +47,6 @@ if find "$task_output_dir" -maxdepth 1 -name '*_model.cif' 2>/dev/null | grep -q
     # Remove all models only if required
     if [ "$KEEP_ALL_PRED" -eq 0 ]; then
         rm -rf "${task_output_dir}"/seed-*_sample-*
+        rm -rf "${task_output_dir}"/ranking_scores.csv
     fi
 fi

@@ -9,8 +9,8 @@ MOD_TIME="1:00:00"
 MOD_MEM="32GB"
 OUTPUT_PATH=""
 ADD_DNA=false
-USE_ENV="1"
-USE_TMPL="1"
+USE_ENV="0"
+USE_TMPL="0"
 KEEP_ALL_PRED="0"
 
 usage() {

@@ -33,7 +33,7 @@ THIRDPROTEIN:FOURTHPROTEIN
 FIFTHPROTEIN:SEVENTHPROTEIN
 ```
 
-## 3. DNA0binding prediction
+## 3. DNA binding prediction
 Run modelling with standard DNA probes in batch. Input fasta file should contain homodimers.
 The results of this computation can be used to infer protein-DNA interaction.
 
